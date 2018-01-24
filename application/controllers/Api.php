@@ -10,13 +10,32 @@ class Api extends CI_Controller{
     function __construct(){
         parent::__construct();
         $this->load->library('Common_class');
-//        $this->admin_model->auth_check();
         //$this->load->library('Common_model');
         header('Access-Control-Allow-Origin: *');
         header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept");
         header('Access-Control-Allow-Methods: GET, POST, PUT,DELETE');
         header("Access-Control-Allow-Credentials: true");
     }
+
+
+//    public function get_token(){
+//        $data = array(
+//            'code'=>'1',
+//            'cur_time'=>$_SERVER['REQUEST_TIME'],//当前请求时间，Unix时间戳
+//            'exp_time'=>$_SERVER['REQUEST_TIME'] + 7200,//过期时间：两个小时过期
+//            'user_name'=>'zhaoyu',
+//            'login_name'=>'zhaoyu'
+//        );
+////        print_r($data);echo "<br>";
+//        $result = $this->admin_model->generate_token($data, $this->config->config['token_key'],$this->config->config['token_algo']);
+//        echo $result;
+//    }
+
+//    public function verify_token(){
+//        $token = $this->input->get('token', TRUE);
+//        $result = $this->admin_model->verify_token($token, 'key_12345678');
+//        print_r($result);
+//    }
 
     //用户登录接口
     public function login(){
@@ -41,10 +60,21 @@ class Api extends CI_Controller{
         $result = $this->admin_model->check_login($login_name, md5($login_pwd));
 
         if (!empty($result)) {//非空数组，登录成功
+            //开始生成token
+            $token_data = array(
+                'cur_time' => $_SERVER['REQUEST_TIME'],//当前请求时间，Unix时间戳
+                'exp_time' => $_SERVER['REQUEST_TIME'] + 7200,//过期时间：两个小时过期
+                'user_name' => $result[0]['user_name'],
+                'login_name' => $login_name
+            );
+//            print_r($token_data);
+            $token = $this->admin_model->generate_token($token_data, $this->config->config['token_key'],$this->config->config['token_algo']);
+
             $data = array(
                 'code' => '0',
                 'user_name' => $result[0]['user_name'],
-                'user_type' => $result[0]['user_type']
+                'user_type' => $result[0]['user_type'],
+                'token' => $token
             );
             $this->session->set_userdata('user_name', $result[0]['user_name']); //记录用户名，用于判断是否登录
             $this->session->set_userdata('user_type', $result[0]['user_type']);
@@ -57,7 +87,14 @@ class Api extends CI_Controller{
     //系统用户密码修改接口
     public function change_pwd(){
 
-        //$this->admin_model->auth_check();
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
 
         //登录名及新密码
         $login_name = $this->input->post('login_name', TRUE);
@@ -86,7 +123,14 @@ class Api extends CI_Controller{
     //用户信息审核接口
     public function user_verify(){
 
-        //$this->admin_model->auth_check();
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
 
         //登录名及新密码
         $id = $this->input->get('id', TRUE);
@@ -114,7 +158,14 @@ class Api extends CI_Controller{
     //用户信息列表查询接口
     public function find_data(){
 
-        //$this->admin_model->auth_check();
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
 
         //用户信息搜索参数
         $page_size = $this->input->get('page_size', TRUE);
@@ -156,7 +207,14 @@ class Api extends CI_Controller{
     //日志查询接口
     public function find_log(){
 
-        //$this->admin_model->auth_check();
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
 
         //日志搜索参数
         $page_size = $this->input->get('page_size', TRUE);
@@ -199,7 +257,14 @@ class Api extends CI_Controller{
     //用户添加接口
     public function add_user(){
 
-        //$this->admin_model->auth_check();
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
 
         //添加的用户相关信息
         $login_name = $this->input->post('login_name', TRUE);
@@ -242,7 +307,14 @@ class Api extends CI_Controller{
     //系统用户信息查询
     public function find_user(){
 
-        //$this->admin_model->auth_check();
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
 
         //日志搜索参数
         $page_size = $this->input->get('page_size', TRUE);
@@ -262,7 +334,14 @@ class Api extends CI_Controller{
             //返回结果为连接参数产生的字符串。如有任何一个参数为NULL ，则返回值为 NULL。
             $search_sql = " AND CONCAT( login_name   ,  user_name   ,  user_status  ) LIKE '%" . $search_info . "%'";
         }
-        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_user_info WHERE 1=1".$search_sql;
+
+        //用户类型筛选
+        $user_type_sql = "";
+        if ($user_type != 'all') {
+            $user_type_sql = " AND user_type='" . $user_type . "'";
+        }
+
+        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_user_info WHERE 1=1".$search_sql.$user_type_sql;
         $total_number = $this->common_model->getTotalNum($get_total_num_sql, 'default');
 
         //返回结果数组
@@ -285,6 +364,15 @@ class Api extends CI_Controller{
 
     //系统用户信息修改接口
     public function edit_user_info(){
+
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
 
         //系统用户信息，ID、用户昵称、用户类型及用户状态
         $id = $this->input->post('id', TRUE);
@@ -314,7 +402,14 @@ class Api extends CI_Controller{
     //系统用户信息接口
     public function get_user_info_by_id(){
 
-        //$this->admin_model->auth_check();
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
 
         //用户ID
         $id = $this->input->get('id', TRUE);
@@ -338,6 +433,43 @@ class Api extends CI_Controller{
         }
         echo json_encode($data);
     }
+
+
+    //补贴操作接口
+    public function subsidy_op(){
+
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
+
+        //登录名及新密码
+        $id = $this->input->get('id', TRUE);
+        $subsidy_name = $this->input->get('subsidy_name', TRUE);
+
+        //返回结果
+        $result = $this->admin_model->subsidy_op($id, $subsidy_name);
+        //print_r($result);
+        //返回结果数组
+        $data = array(
+            'code' => '0',
+            'error_msg' => ''
+        );
+        if (!$result) {
+            $data = array(
+                'code' => '10011',
+                'error_msg' => $result
+            );
+        } else {
+            $this->admin_model->add_log($this->input->ip_address(), $subsidy_name, '补贴操作，数据ID：'.$id); //记录日志
+        }
+        echo json_encode($data);
+    }
+
 
     //退出系统接口
     public function logout(){

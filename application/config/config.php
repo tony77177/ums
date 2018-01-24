@@ -521,6 +521,8 @@ $config['proxy_ips'] = '';
 $config['sys_version'] = 'v 1.0';
 $config['sys_name'] = '用户信息审核系统';
 $config['upload_path'] = 'application/upload_files/';
+$config['token_key'] = 'key_12345678';//token key，用于token生成
+$config['token_algo'] = 'SHA256';//token加密算法
 
 $config['rest_auth'] = 'basic';
 $config['rest_valid_logins'] = ['uname' => 'pwd'];
