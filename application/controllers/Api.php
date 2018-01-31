@@ -26,9 +26,12 @@ class Api extends CI_Controller{
 //            'user_name'=>'zhaoyu',
 //            'login_name'=>'zhaoyu'
 //        );
+//
 ////        print_r($data);echo "<br>";
-//        $result = $this->admin_model->generate_token($data, $this->config->config['token_key'],$this->config->config['token_algo']);
-//        echo $result;
+//        $data = json_encode($data);
+//        //$result = $this->admin_model->generate_token($data, $this->config->config['token_key'],$this->config->config['token_algo']);
+//        log_message('info', '生成token测试：' . $data);
+//        echo $data;
 //    }
 
 //    public function verify_token(){
@@ -79,6 +82,7 @@ class Api extends CI_Controller{
             $this->session->set_userdata('user_name', $result[0]['user_name']); //记录用户名，用于判断是否登录
             $this->session->set_userdata('user_type', $result[0]['user_type']);
             $this->session->set_userdata('login_name', $login_name);
+            log_message('info', '登录成功，用户名：' . $login_name);
             $this->admin_model->add_log($this->input->ip_address(), $login_name ,'用户登录'); //记录登录日志
         }
         echo json_encode($data);
@@ -103,6 +107,7 @@ class Api extends CI_Controller{
 
         //返回结果
         $result = $this->admin_model->change_pwd($login_name, md5($change_pwd));
+        log_message('info', '修改密码返回值：' . $result . '，用户名为：' . $login_name);
         //print_r($result);
         //返回结果数组
         $data = array(
@@ -138,6 +143,7 @@ class Api extends CI_Controller{
 
         //返回结果
         $result = $this->admin_model->user_verify($id, $op_name);
+        log_message('info', '用户审核操作结果：' . $result . '，审核人为：' . $op_name);
         //print_r($result);
         //返回结果数组
         $data = array(
@@ -287,6 +293,7 @@ class Api extends CI_Controller{
 
         //返回结果
         $result = $this->admin_model->add_user($login_name, md5($login_pwd), $user_name, $user_type);
+        log_message('info', '添加用户操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
         //print_r($result);
         //返回结果数组
         $data = array(
@@ -382,6 +389,7 @@ class Api extends CI_Controller{
 
         //返回结果
         $result = $this->admin_model->edit_user_info($id, $user_name,$user_type,$user_status);
+        log_message('info', '修改用户信息操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
         //print_r($result);
         //返回结果数组
         $data = array(
@@ -447,12 +455,13 @@ class Api extends CI_Controller{
             echo json_encode($error_msg);exit;
         }
 
-        //登录名及新密码
+        //相关参数获取
         $id = $this->input->get('id', TRUE);
         $subsidy_name = $this->input->get('subsidy_name', TRUE);
 
         //返回结果
         $result = $this->admin_model->subsidy_op($id, $subsidy_name);
+        log_message('info', '补贴操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
         //print_r($result);
         //返回结果数组
         $data = array(
@@ -468,6 +477,121 @@ class Api extends CI_Controller{
             $this->admin_model->add_log($this->input->ip_address(), $subsidy_name, '补贴操作，数据ID：'.$id); //记录日志
         }
         echo json_encode($data);
+    }
+
+    //后台批量添加文档接口
+    public function upload_files()
+    {
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
+
+        //获取上传文件后缀类型
+        /**
+         * $_FILES['uploadedfile']
+         * uploadedfile为前端上传内容名字，更改时以前端为准
+         */
+        $file_array = explode(".", $_FILES['uploadedfile']['name']);
+//        print_r($file_array);exit;
+        $file_extension = strtolower(array_pop($file_array));
+        if ($file_extension != 'xls' && $file_extension != 'xlsx') {
+            echo(json_encode(
+                array(
+                    "code"=>"10012",
+                    "error_msg" => "文件类型错误，请上传excel文档(后缀名xls或xlsx)"
+                ), JSON_UNESCAPED_UNICODE
+            ));
+        } else {
+            //文件保存后的新名字及保存目录
+            $file_new_Name = $this->config->config['upload_path'] . $_SESSION['login_name'] . '-' . time() . '.' . $file_extension;
+            //保存文件，保存成功返回 TRUE 否则返回FALSE
+            $flag = move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $file_new_Name);
+            log_message('info', 'excel文件新名字：' . $file_new_Name);
+            log_message('info', 'excel文件是否保存成功标志：' . $flag);
+            if ($flag) {
+                //加载Excel插件
+                $this->load->library('excel');
+                //文件保存成功，开始读文件
+                $objPHPExcel = PHPExcel_IOFactory::load($file_new_Name);
+                $cell_collection = $objPHPExcel->getActiveSheet()->getCellCollection();
+                foreach ($cell_collection as $cell) {
+                    $column = $objPHPExcel->getActiveSheet()->getCell($cell)->getColumn();
+                    $row = $objPHPExcel->getActiveSheet()->getCell($cell)->getRow();
+                    //获取具体值此处使用：getFormattedValue，因为部分excel中包含格式，所以包含格式一起读取
+                    $data_value = trim($objPHPExcel->getActiveSheet()->getCell($cell)->getFormattedValue());
+                    //header will/should be in row 1 only. of course this can be modified to suit your need.
+                    if ($row == 1) {
+                        $header[$row][$column] = $data_value;
+                    } else {
+                        $arr_data[$row][$column] = $data_value;
+                    }
+                }
+//                print_r($arr_data);exit;
+                //send the data in an array format
+//                $data['header'] = $header;
+//                $data['values'] = $arr_data;
+//                $_community_info = $this->input->post('community_info', TRUE);//小区ID
+//                $_sr_info = $this->input->post('sr_info', TRUE);//分前端ID
+                $success_num = 0;//数据添加成功数量
+                $fail_num = 0;//数据添加失败数量
+                $fail_array = array();//添加失败内容
+                foreach ($arr_data as $item) {
+                    //检测数据是否存在
+                    $check_info_is_exist_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE idcard='" . $item['B'] . "'";
+                    $check_result = $this->common_model->getTotalNum($check_info_is_exist_sql, 'default');
+//                    print_r($check_result);exit;
+                    log_message('info', '检测数据是否存在返回结果：：' . $check_result->num);
+
+                    //如果不重复，则执行数据新增操作
+                    if ($check_result->num == 0) {
+                        //新增数据SQL
+                        $add_sql = "INSERT INTO t_vehicle_info(contact,idcard,address,contacttel,brand,cartype,color,licenseplate) VALUES ";
+                        $add_sql .= "('" . $item['A'] . "','" . $item['B'] . "','" . $item['C'] . "','" . $item['D'] . "','" . $item['E'] . "','" . $item['F'] . "','" . $item['G'] . "','" . $item['H'] . "')";
+                        $result = $this->common_model->execQuery($add_sql, 'default');
+                        //如果添加成功，则记录log
+                        if ($result) {
+                            $this->admin_model->add_log($this->input->ip_address(), $_SESSION['login_name'] . '  ' . $_SESSION['user_name'], '添加车辆信息，车主姓名为：' . $item['A']); //记录日志
+                        }
+                        $success_num++;
+                    } else {
+                        log_message('info', '数据添加失败，失败IdCard为：' . $item['B']);
+                        $fail_num++;
+                        array_push($fail_array, $item['B']);//记录失败ID
+                    }
+                }
+                if ($success_num == 0) {
+                    echo(json_encode(
+                        array(
+                            "code"=>"10012",
+                            "error_msg" => "添加失败，请确认添加数据是否已存在！"
+                        ), JSON_UNESCAPED_UNICODE
+                    ));
+                } else {
+                    echo(json_encode(
+                        array(
+                            "code"=>"0",
+                            "error_msg" => "",
+                            "success_num" => $success_num,
+                            "fail_num" => $fail_num,
+                            "fail_data"=>$fail_array
+                        ), JSON_UNESCAPED_UNICODE
+                    ));
+                }
+            } else {
+                log_message('info', '上传文件保存失败：' . $file_new_Name);
+                echo(json_encode(
+                    array(
+                        "code"=>"10012",
+                        "error_msg" => "上传文件保存失败，请联系管理员检查上传目录是否有读写权限"
+                    ), JSON_UNESCAPED_UNICODE
+                ));
+            }
+        }
     }
 
 
