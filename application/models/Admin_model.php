@@ -403,6 +403,19 @@ class Admin_Model extends CI_Model {
         return $result;
     }
 
+    /**
+     * 区域数据导出
+     * @param $_begin_time      开始时间
+     * @param $_end_time        结束时间
+     * @param $_location_id     区域范围
+     * @return mixed
+     */
+    function export_info_list($_begin_time,$_end_time,$_location_id){
+        $get_info_sql = "SELECT * FROM t_vehicle_info WHERE subsidy_flag='1' AND location_id='".$_location_id."' AND subsidy_time BETWEEN '" . $_begin_time . "' AND '" . $_end_time . "'";
+        $result = $this->common_model->getDataList($get_info_sql, 'default');
+        return $result;
+    }
+
 }
 
 /* End of file admin_model.php */

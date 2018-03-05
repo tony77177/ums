@@ -780,6 +780,119 @@ class Api extends CI_Controller{
         echo json_encode($data);
     }
 
+
+    //已补贴数据导出接口
+    public function export_info_list(){
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
+
+        //获取导出开始时间及结束时间
+        $begin_time = $this->input->get('begin_time', TRUE);
+        $end_time = $this->input->get('end_time', TRUE);
+
+        //根据token获取用户区域码
+        $headers = apache_request_headers();
+        $tokens = explode('.', $headers['authorization']);
+        list($header64, $payload64, $sign) = $tokens;
+        $payload = json_decode(base64_decode($payload64));
+        $location_id = $payload->location_id;
+
+        //获取查询数据
+        $result = $this->admin_model->export_info_list($begin_time, $end_time, $location_id);
+        if (count($result) == 0) {
+            $error_msg = array(
+                'code' => '10017',
+                'error_msg' => '没有查询到数据'
+            );
+            echo json_encode($error_msg);
+            exit;
+        }
+//        echo $result[0]['contact'];
+//        echo $result[0]['idcard'];
+//        var_dump($result);
+//        echo count($result);
+//        exit;
+
+        //开始生成Excel数据
+        //新建Excel类
+        //加载Excel插件
+        $this->load->library('excel');
+        $objPHPExcel = new PHPExcel();
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+
+        // Set document properties
+        $objPHPExcel->getProperties()->setCreator("ums")
+            ->setLastModifiedBy("ums")
+            ->setTitle("Office 2007 XLSX Document")
+            ->setSubject("Office 2007 XLSX Document");
+
+
+        // 设置标题栏
+        $objPHPExcel->setActiveSheetIndex(0)
+            ->setCellValue('A1', '车主姓名')
+            ->setCellValue('B1', '用户住址')
+            ->setCellValue('C1', '身份证')
+            ->setCellValue('D1', '车主电话')
+            ->setCellValue('E1', '补贴时间');
+
+        //设置字体加粗、字体大小及垂直居中
+        $objPHPExcel->setActiveSheetIndex(0)->getStyle('A1:E1')->getFont()->setSize(12);
+        $objPHPExcel->setActiveSheetIndex(0)->getStyle('A1:E1')->getFont()->setBold(true);
+        $objPHPExcel->setActiveSheetIndex(0)->getStyle('A1:E1')->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);////水平对齐
+        $objPHPExcel->setActiveSheetIndex(0)->getStyle('A1:E1')->getAlignment()->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);////垂直平对齐
+        $objPHPExcel->setActiveSheetIndex(0)->getRowDimension(1)->setRowHeight(25);//行高
+
+        //添加内容
+        for ($i = 0; $i < count($result); $i++) {
+            $objPHPExcel->setActiveSheetIndex(0)
+                ->setCellValue('A' . ($i + 2), $result[$i]['contact'])
+                ->setCellValue('B' . ($i + 2), $result[$i]['address'])
+                ->setCellValue('C' . ($i + 2), ' '.$result[$i]['idcard'])
+                ->setCellValue('D' . ($i + 2), $result[$i]['contacttel'])
+                ->setCellValue('E' . ($i + 2), $result[$i]['subsidy_time']);
+
+            //设置列宽度
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension('A')->setWidth(10);
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension('B')->setWidth(25);
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension('C')->setWidth(30);
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension('D')->setWidth(15);
+            $objPHPExcel->setActiveSheetIndex(0)->getColumnDimension('E')->setWidth(20);
+
+            //设置列垂直居中
+//        $objPHPExcel->setActiveSheetIndex(0)->getStyle('A' . ($i + 2) . ':O' . ($i + 2))->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+        }
+
+        // Rename worksheet
+        $objPHPExcel->getActiveSheet()->setTitle('已补贴数据');
+
+        // Set active sheet index to the first sheet, so Excel opens this as the first sheet
+        $objPHPExcel->setActiveSheetIndex(0);
+
+        // Redirect output to a client’s web browser (Excel5)
+        header('Content-Type: application/vnd.ms-excel');
+        header('Content-Disposition: attachment;filename="已补贴导出数据-' . date("Ymdhis", time()) . '.xls"');
+        header('Cache-Control: max-age=0');
+        // If you're serving to IE 9, then the following may be needed
+        header('Cache-Control: max-age=1');
+
+        // If you're serving to IE over SSL, then the following may be needed
+        header('Expires: Mon, 26 Jul 1997 05:00:00 GMT'); // Date in the past
+        header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT'); // always modified
+        header('Cache-Control: cache, must-revalidate'); // HTTP/1.1
+        header('Pragma: public'); // HTTP/1.0
+
+        $objWriter->save('php://output');
+
+
+    }
+
+
     //退出系统接口
     public function logout(){
         $this->session->sess_destroy();
