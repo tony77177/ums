@@ -41,11 +41,17 @@ class Api extends CI_Controller{
 //    }
 
     //用户登录接口
-    public function login(){
+    public function login()
+    {
 
         //登录名及密码
         $login_name = $this->input->post('login_name', TRUE);
         $login_pwd = $this->input->post('login_pwd', TRUE);
+
+//        var_dump($this->input->cookie());
+
+        $ip_address = $this->input->cookie('ip');
+        $ip_location = $this->input->cookie('ipName');
 
         //返回结果数组
         $data = array(
@@ -68,22 +74,24 @@ class Api extends CI_Controller{
                 'cur_time' => $_SERVER['REQUEST_TIME'],//当前请求时间，Unix时间戳
                 'exp_time' => $_SERVER['REQUEST_TIME'] + 7200,//过期时间：两个小时过期
                 'user_name' => $result[0]['user_name'],
-                'login_name' => $login_name
+                'login_name' => $login_name,
+                'location_id' => $result[0]['location_id']
             );
 //            print_r($token_data);
-            $token = $this->admin_model->generate_token($token_data, $this->config->config['token_key'],$this->config->config['token_algo']);
+            $token = $this->admin_model->generate_token($token_data, $this->config->config['token_key'], $this->config->config['token_algo']);
 
             $data = array(
                 'code' => '0',
                 'user_name' => $result[0]['user_name'],
                 'user_type' => $result[0]['user_type'],
+//                'location_id' => $result[0]['location_id'],
                 'token' => $token
             );
             $this->session->set_userdata('user_name', $result[0]['user_name']); //记录用户名，用于判断是否登录
             $this->session->set_userdata('user_type', $result[0]['user_type']);
             $this->session->set_userdata('login_name', $login_name);
             log_message('info', '登录成功，用户名：' . $login_name);
-            $this->admin_model->add_log($this->input->ip_address(), $login_name ,'用户登录'); //记录登录日志
+            $this->admin_model->add_log($ip_address, $login_name, '用户登录',$ip_location); //记录登录日志
         }
         echo json_encode($data);
     }
@@ -156,12 +164,12 @@ class Api extends CI_Controller{
                 'error_msg' => $result
             );
         } else {
-            $this->admin_model->add_log($this->input->ip_address(), $op_name, '数据审核，数据ID：'.$id); //记录日志
+            $this->admin_model->add_log($this->input->cookie('ip'), $op_name, '数据审核，数据ID：'.$id,$this->input->cookie('ipName')); //记录日志
         }
         echo json_encode($data);
     }
 
-    //用户信息列表查询接口
+    //车辆信息列表查询接口
     public function find_data(){
 
         //验证token，防止恶意请求
@@ -178,8 +186,16 @@ class Api extends CI_Controller{
         $page_number = $this->input->get('page_number', TRUE);
         $search_info = trim($this->input->get('search_info', TRUE));
 
+        //根据token获取用户区域码
+        $headers = apache_request_headers();
+        $tokens = explode('.', $headers['authorization']);
+        list($header64, $payload64, $sign) = $tokens;
+        $payload = json_decode(base64_decode($payload64));
+        $location_id = $payload->location_id;
+//        var_dump($payload);
+
         //返回结果
-        $result = $this->admin_model->find_data($page_size, $page_number,$search_info);
+        $result = $this->admin_model->find_data($page_size, $page_number,$search_info,$location_id);
 
         //数据总条数
         //模糊搜索
@@ -189,6 +205,10 @@ class Api extends CI_Controller{
             //返回结果为连接参数产生的字符串。如有任何一个参数为NULL ，则返回值为 NULL。
             $search_sql = " AND CONCAT(contact ,idcard ,address,contacttel) LIKE '%" . $search_info . "%'";
         }
+        if ($location_id != 0) {
+            $search_sql .= ' AND location_id=' . $location_id;
+        }
+
         $get_total_num_sql = "SELECT COUNT(*) as num FROM t_vehicle_info WHERE 1=1".$search_sql;
         $total_number = $this->common_model->getTotalNum($get_total_num_sql, 'default');
 
@@ -277,6 +297,7 @@ class Api extends CI_Controller{
         $login_pwd = $this->input->post('login_pwd', TRUE);
         $user_name = $this->input->post('user_name', TRUE);
         $user_type = $this->input->post('user_type', TRUE);
+        $location_id = $this->input->post('location_id', TRUE);
 
         //验证登录名唯一性
         $check_sql = "SELECT COUNT(*) as num FROM  t_user_info WHERE login_name='" . $login_name . "'";
@@ -292,7 +313,7 @@ class Api extends CI_Controller{
         }
 
         //返回结果
-        $result = $this->admin_model->add_user($login_name, md5($login_pwd), $user_name, $user_type);
+        $result = $this->admin_model->add_user($login_name, md5($login_pwd), $user_name, $user_type,$location_id);
         log_message('info', '添加用户操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
         //print_r($result);
         //返回结果数组
@@ -306,7 +327,7 @@ class Api extends CI_Controller{
                 'error_msg' => $result
             );
         } else {
-            $this->admin_model->add_log($this->input->ip_address(), $this->session->userdata('login_name'), '添加用户：'.$login_name); //记录日志
+            $this->admin_model->add_log($this->input->cookie('ip'), $this->session->userdata('login_name'), '添加用户：'.$login_name,$this->input->cookie('ipName')); //记录日志
         }
         echo json_encode($data);
     }
@@ -381,14 +402,15 @@ class Api extends CI_Controller{
             echo json_encode($error_msg);exit;
         }
 
-        //系统用户信息，ID、用户昵称、用户类型及用户状态
+        //系统用户信息，ID、用户昵称、用户类型、用户状态及所属区域位置ID
         $id = $this->input->post('id', TRUE);
         $user_name = $this->input->post('user_name', TRUE);
         $user_type = $this->input->post('user_type', TRUE);
         $user_status = $this->input->post('user_status', TRUE);
+        $location_id = $this->input->post('location_id', TRUE);
 
         //返回结果
-        $result = $this->admin_model->edit_user_info($id, $user_name,$user_type,$user_status);
+        $result = $this->admin_model->edit_user_info($id, $user_name,$user_type,$user_status,$location_id);
         log_message('info', '修改用户信息操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
         //print_r($result);
         //返回结果数组
@@ -402,7 +424,7 @@ class Api extends CI_Controller{
                 'error_msg' => $result
             );
         } else {
-            $this->admin_model->add_log($this->input->ip_address(), $this->session->userdata('login_name'), '用户信息更改，用户ID：'.$id); //记录日志
+            $this->admin_model->add_log($this->input->cookie('ip'), $this->session->userdata('login_name'), '用户信息更改，用户ID：' . $id, $this->input->cookie('ipName')); //记录日志
         }
         echo json_encode($data);
     }
@@ -432,11 +454,12 @@ class Api extends CI_Controller{
         if (!empty($result)) {//非空数组，数据获取成功
             $data = array(
                 'code' => '0',
-                'id'=>$result[0]['id'],
-                'login_name'=>$result[0]['login_name'],
-                'user_name'=>$result[0]['user_name'],
-                'user_type'=>$result[0]['user_type'],
-                'user_status'=>$result[0]['user_status']
+                'id' => $result[0]['id'],
+                'login_name' => $result[0]['login_name'],
+                'user_name' => $result[0]['user_name'],
+                'user_type' => $result[0]['user_type'],
+                'user_status' => $result[0]['user_status'],
+                'location_id' => $result[0]['location_id']
             );
         }
         echo json_encode($data);
@@ -474,12 +497,12 @@ class Api extends CI_Controller{
                 'error_msg' => $result
             );
         } else {
-            $this->admin_model->add_log($this->input->ip_address(), $subsidy_name, '补贴操作，数据ID：'.$id); //记录日志
+            $this->admin_model->add_log($this->input->cookie('ip'), $subsidy_name, '补贴操作，数据ID：' . $id, $this->input->cookie('ipName')); //记录日志
         }
         echo json_encode($data);
     }
 
-    //后台批量添加文档接口
+    //后台批量添加车辆信息接口
     public function upload_files()
     {
         //验证token，防止恶意请求
@@ -550,12 +573,12 @@ class Api extends CI_Controller{
                     //如果不重复，则执行数据新增操作
                     if ($check_result->num == 0) {
                         //新增数据SQL
-                        $add_sql = "INSERT INTO t_vehicle_info(contact,idcard,address,contacttel,brand,cartype,color,licenseplate) VALUES ";
-                        $add_sql .= "('" . $item['A'] . "','" . $item['B'] . "','" . $item['C'] . "','" . $item['D'] . "','" . $item['E'] . "','" . $item['F'] . "','" . $item['G'] . "','" . $item['H'] . "')";
+                        $add_sql = "INSERT INTO t_vehicle_info(location_id,contact,contacttel,idcard,licenseplate,frid,maincard,brand,color,cartype,address) VALUES ";
+                        $add_sql .= "('" . $item['A'] . "','" . $item['B'] . "','" . $item['C'] . "','" . $item['D'] . "','" . $item['E'] . "','" . $item['F'] . "','" . $item['G'] . "','" . $item['H'] . "','" . $item['I'] . "','" . $item['J'] . "','" . $item['K'] . "')";
                         $result = $this->common_model->execQuery($add_sql, 'default');
                         //如果添加成功，则记录log
                         if ($result) {
-                            $this->admin_model->add_log($this->input->ip_address(), $_SESSION['login_name'] . '  ' . $_SESSION['user_name'], '添加车辆信息，车主姓名为：' . $item['A']); //记录日志
+                            $this->admin_model->add_log($this->input->cookie('ip'), $_SESSION['login_name'] . '  ' . $_SESSION['user_name'], '添加车辆信息，车主姓名为：' . $item['A'], $this->input->cookie('ipName')); //记录日志
                         }
                         $success_num++;
                     } else {
@@ -594,6 +617,168 @@ class Api extends CI_Controller{
         }
     }
 
+    //区域范围查询接口
+    public function find_location(){
+
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
+
+        //区域信息搜索参数
+        $page_size = $this->input->get('page_size', TRUE);
+        $page_number = $this->input->get('page_number', TRUE);
+        $search_info = trim($this->input->get('search_info', TRUE));
+
+
+
+        //返回结果
+        $result = $this->admin_model->find_location($page_size, $page_number, $search_info);
+
+        //数据总条数
+        //模糊搜索
+        $search_sql = "";
+        if ($search_info !== '') {
+            //mysql CONCAT(str1,str2,…)
+            //返回结果为连接参数产生的字符串。如有任何一个参数为NULL ，则返回值为 NULL。
+            $search_sql = " AND CONCAT(id,location_name) LIKE '%" . $search_info . "%'";
+        }
+        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_location_info WHERE 1=1".$search_sql;
+        $total_number = $this->common_model->getTotalNum($get_total_num_sql, 'default');
+
+        //返回结果数组
+        $data = array(
+            'code' => '10013',
+            'error_msg' => '数据读取失败，请稍后再试'
+        );
+        if (!empty($result)) {//非空数组，数据获取成功
+            $data = array(
+                'code' => '0',
+                'page_size'=>$page_size,
+                'page_number'=>$page_number,
+                'total_number'=>$total_number->num,
+                'error_msg' => '',
+                'data' => $result
+            );
+        }
+        echo json_encode($data);
+    }
+
+    //区域范围添加接口
+    public function add_location_info(){
+
+        //验证token，防止恶意请求
+        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
+            $error_msg = array(
+                'code' => '10000',
+                'error_msg' => 'token校验失败'
+            );
+            echo json_encode($error_msg);
+            exit;
+        }
+
+        //添加的区域相关信息
+        $location_name = $this->input->post('location_name', TRUE);
+
+        //返回结果
+        $result = $this->admin_model->add_location_info($location_name);
+        log_message('info', '添加区域：'.$location_name.'添加区域操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
+
+        //返回结果数组
+        $data = array(
+            'code' => '0',
+            'error_msg' => ''
+        );
+        if (!$result) {
+            $data = array(
+                'code' => '10014',
+                'error_msg' => $result
+            );
+        } else {
+            $this->session->unset_userdata('location_info');//删除原有地址列表session
+            $this->admin_model->add_log($this->input->cookie('ip'), $this->session->userdata('login_name'), '添加社区：' . $location_name,$this->input->cookie('ipName')); //记录日志
+        }
+        echo json_encode($data);
+    }
+
+
+    //区域范围修改接口
+    public function edit_location_info(){
+        //验证token，防止恶意请求
+        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
+            $error_msg = array(
+                'code' => '10000',
+                'error_msg' => 'token校验失败'
+            );
+            echo json_encode($error_msg);
+            exit;
+        }
+
+        //系统用户信息，ID、用户昵称、用户类型、用户状态及所属区域位置ID
+        $id = $this->input->post('id', TRUE);
+        $location_name = $this->input->post('location_name', TRUE);
+
+        //返回结果
+        $result = $this->admin_model->edit_location_info($id, $location_name);
+        log_message('info', '修改区域范围操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
+
+        //返回结果数组
+        $data = array(
+            'code' => '0',
+            'error_msg' => ''
+        );
+        if (!$result) {
+            $data = array(
+                'code' => '10015',
+                'error_msg' => $result
+            );
+        } else {
+            $this->session->unset_userdata('location_info');//删除原有地址列表session
+            $this->admin_model->add_log($this->input->cookie('ip'), $this->session->userdata('login_name'), '区域范围修改，新名称为：' . $location_name, $this->input->cookie('ipName')); //记录日志
+        }
+        echo json_encode($data);
+    }
+
+
+    //区域范围查询接口-用于下拉列表选项
+    public function get_location_list(){
+
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
+
+        //数据存入session，防止频繁请求数据库
+        $result = $this->session->userdata('location_info');
+        if (!isset($result)) {
+            $result = $this->admin_model->get_location_list();
+            $this->session->set_userdata('location_info', $result);
+        } else {
+            $result = $this->session->userdata('location_info');
+        }
+
+        //返回结果数组
+        $data = array(
+            'code' => '10016',
+            'error_msg' => '数据读取失败，请稍后再试'
+        );
+
+        if (!empty($result)) {//非空数组，数据获取成功
+            $data = array(
+                'code' => '0',
+                'data' => $result
+            );
+        }
+        echo json_encode($data);
+    }
 
     //退出系统接口
     public function logout(){

@@ -85,10 +85,15 @@ class Admin_Model extends CI_Model {
      * @param $_page_size       数据显示条数
      * @param $_page_number     当前页码
      * @param $_search_info     模糊查询内容
+     * $param $_location_id     所属区域ID
      * @return mixed
      */
-    function find_data($_page_size, $_page_number, $_search_info){
+    function find_data($_page_size, $_page_number, $_search_info,$_location_id){
         $find_sql = "SELECT * FROM t_vehicle_info WHERE 1=1";
+
+        if ($_location_id != 0) {
+            $find_sql .= ' AND location_id=' . $_location_id;
+        }
 
         //模糊搜索
         $search_sql = "";
@@ -213,12 +218,13 @@ class Admin_Model extends CI_Model {
     /**
      * 记录操作日志
      * @param $_ip              操作IP地址
+     * @param $_ip_location     操作IP归属地
      * @param $_username        用户账号
      * @param $_log_content     操作内容
      * @return mixed
      */
-    function add_log($_ip,$_username,$_log_content){
-        $log_sql = "INSERT INTO t_log_info(op_content , op_time , op_user , ip_address ) VALUES('" . $_log_content . "','" . date("Y-m-d H:i:s") . "','" . $_username . "','" . $_ip . "')";
+    function add_log($_ip,$_username,$_log_content,$_ip_location){
+        $log_sql = "INSERT INTO t_log_info(op_content , op_time , op_user , ip_address ,ip_location) VALUES('" . $_log_content . "','" . date("Y-m-d H:i:s") . "','" . $_username . "','" . $_ip . "','" . $_ip_location . "')";
         $result = $this->common_model->execQuery($log_sql, 'default', TRUE);
         return $result;
     }
