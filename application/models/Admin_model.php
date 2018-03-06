@@ -68,7 +68,7 @@ class Admin_Model extends CI_Model {
     }
 
     /**
-     * 用户信息状态审核
+     * 车辆信息状态审核
      * @param $_id      用户ID
      * @param $_op_name 操作用户
      * @return mixed
@@ -413,6 +413,19 @@ class Admin_Model extends CI_Model {
     function export_info_list($_begin_time,$_end_time,$_location_id){
         $get_info_sql = "SELECT * FROM t_vehicle_info WHERE subsidy_flag='1' AND location_id='".$_location_id."' AND subsidy_time BETWEEN '" . $_begin_time . "' AND '" . $_end_time . "'";
         $result = $this->common_model->getDataList($get_info_sql, 'default');
+        return $result;
+    }
+
+
+    /**
+     * 修改车辆信息所属区域接口
+     * @param $_id              车辆ID
+     * @param $_location_id     区域ID
+     * @return mixed
+     */
+    function edit_vehicle_location_id($_id,$_location_id){
+        $update_sql = "UPDATE t_vehicle_info SET  location_id='" . $_location_id . "' WHERE  id='" . $_id . "'";
+        $result = $this->common_model->execQuery($update_sql, 'default');
         return $result;
     }
 

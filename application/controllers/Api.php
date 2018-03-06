@@ -48,8 +48,8 @@ class Api extends CI_Controller{
         $login_name = $this->input->post('login_name', TRUE);
         $login_pwd = $this->input->post('login_pwd', TRUE);
 
-//        var_dump($this->input->cookie());
 
+        //通过cookie获取IP地址及归属地
         $ip_address = $this->input->cookie('ip');
         $ip_location = $this->input->cookie('ipName');
 
@@ -91,7 +91,7 @@ class Api extends CI_Controller{
             $this->session->set_userdata('user_type', $result[0]['user_type']);
             $this->session->set_userdata('login_name', $login_name);
             log_message('info', '登录成功，用户名：' . $login_name);
-            $this->admin_model->add_log($ip_address, $login_name, '用户登录',$ip_location); //记录登录日志
+            $this->admin_model->add_log($ip_address, $login_name, '用户登录', $ip_location); //记录登录日志
         }
         echo json_encode($data);
     }
@@ -100,23 +100,23 @@ class Api extends CI_Controller{
     public function change_pwd(){
 
         //验证token，防止恶意请求
-        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
             $error_msg = array(
-                'code'=>'10000',
-                'error_msg'=>'token校验失败'
+                'code' => '10000',
+                'error_msg' => 'token校验失败'
             );
-            echo json_encode($error_msg);exit;
+            echo json_encode($error_msg);
+            exit;
         }
 
         //登录名及新密码
         $login_name = $this->input->post('login_name', TRUE);
         $change_pwd = $this->input->post('change_pwd', TRUE);
-        //echo $change_pwd."<br/>";
 
         //返回结果
         $result = $this->admin_model->change_pwd($login_name, md5($change_pwd));
-        log_message('info', '修改密码返回值：' . $result . '，用户名为：' . $login_name);
-        //print_r($result);
+        log_message('info', '修改密码返回值：' . $result . '，修改密码的用户名为：' . $login_name);
+
         //返回结果数组
         $data = array(
             'code' => '0',
@@ -133,26 +133,28 @@ class Api extends CI_Controller{
         echo json_encode($data);
     }
 
-    //用户信息审核接口
+    //车辆信息审核接口
     public function user_verify(){
 
         //验证token，防止恶意请求
-        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
             $error_msg = array(
-                'code'=>'10000',
-                'error_msg'=>'token校验失败'
+                'code' => '10000',
+                'error_msg' => 'token校验失败'
             );
-            echo json_encode($error_msg);exit;
+            echo json_encode($error_msg);
+            exit;
         }
 
-        //登录名及新密码
+        //审核ID及审核人
         $id = $this->input->get('id', TRUE);
         $op_name = $this->input->get('op_name', TRUE);
 
         //返回结果
         $result = $this->admin_model->user_verify($id, $op_name);
-        log_message('info', '用户审核操作结果：' . $result . '，审核人为：' . $op_name);
-        //print_r($result);
+        log_message('info', '车辆信息审核操作结果：' . $result . '，审核人为：' . $op_name . '，操作IP地址为：' . $this->input->cookie('ip') . '，操作归属地为：' . $this->input->cookie('ipName'));
+        log_message('info', '相关参数为：id：' . $id . '，op_name：' . $op_name);
+
         //返回结果数组
         $data = array(
             'code' => '0',
@@ -164,7 +166,7 @@ class Api extends CI_Controller{
                 'error_msg' => $result
             );
         } else {
-            $this->admin_model->add_log($this->input->cookie('ip'), $op_name, '数据审核，数据ID：'.$id,$this->input->cookie('ipName')); //记录日志
+            $this->admin_model->add_log($this->input->cookie('ip'), $op_name, '数据审核，数据ID：' . $id, $this->input->cookie('ipName')); //记录日志
         }
         echo json_encode($data);
     }
@@ -173,12 +175,13 @@ class Api extends CI_Controller{
     public function find_data(){
 
         //验证token，防止恶意请求
-        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
             $error_msg = array(
-                'code'=>'10000',
-                'error_msg'=>'token校验失败'
+                'code' => '10000',
+                'error_msg' => 'token校验失败'
             );
-            echo json_encode($error_msg);exit;
+            echo json_encode($error_msg);
+            exit;
         }
 
         //用户信息搜索参数
@@ -192,10 +195,9 @@ class Api extends CI_Controller{
         list($header64, $payload64, $sign) = $tokens;
         $payload = json_decode(base64_decode($payload64));
         $location_id = $payload->location_id;
-//        var_dump($payload);
 
         //返回结果
-        $result = $this->admin_model->find_data($page_size, $page_number,$search_info,$location_id);
+        $result = $this->admin_model->find_data($page_size, $page_number, $search_info, $location_id);
 
         //数据总条数
         //模糊搜索
@@ -209,7 +211,7 @@ class Api extends CI_Controller{
             $search_sql .= ' AND location_id=' . $location_id;
         }
 
-        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_vehicle_info WHERE 1=1".$search_sql;
+        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_vehicle_info WHERE 1=1" . $search_sql;
         $total_number = $this->common_model->getTotalNum($get_total_num_sql, 'default');
 
         //返回结果数组
@@ -220,9 +222,9 @@ class Api extends CI_Controller{
         if (!empty($result)) {//非空数组，数据获取成功
             $data = array(
                 'code' => '0',
-                'page_size'=>$page_size,
-                'page_number'=>$page_number,
-                'total_number'=>$total_number->num,
+                'page_size' => $page_size,
+                'page_number' => $page_number,
+                'total_number' => $total_number->num,
                 'error_msg' => '',
                 'data' => $result
             );
@@ -234,12 +236,13 @@ class Api extends CI_Controller{
     public function find_log(){
 
         //验证token，防止恶意请求
-        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
             $error_msg = array(
-                'code'=>'10000',
-                'error_msg'=>'token校验失败'
+                'code' => '10000',
+                'error_msg' => 'token校验失败'
             );
-            echo json_encode($error_msg);exit;
+            echo json_encode($error_msg);
+            exit;
         }
 
         //日志搜索参数
@@ -248,7 +251,7 @@ class Api extends CI_Controller{
         $search_info = trim($this->input->get('search_info', TRUE));
 
         //返回结果
-        $result = $this->admin_model->find_log($page_size, $page_number,$search_info);
+        $result = $this->admin_model->find_log($page_size, $page_number, $search_info);
         //print_r($result);
 
         //数据总条数
@@ -259,7 +262,7 @@ class Api extends CI_Controller{
             //返回结果为连接参数产生的字符串。如有任何一个参数为NULL ，则返回值为 NULL。
             $search_sql = " AND CONCAT(op_content  , op_time  , op_user , ip_address ) LIKE '%" . $search_info . "%'";
         }
-        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_log_info WHERE 1=1".$search_sql;
+        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_log_info WHERE 1=1" . $search_sql;
         $total_number = $this->common_model->getTotalNum($get_total_num_sql, 'default');
 
         //返回结果数组
@@ -270,9 +273,9 @@ class Api extends CI_Controller{
         if (!empty($result)) {//非空数组，数据获取成功
             $data = array(
                 'code' => '0',
-                'page_size'=>$page_size,
-                'page_number'=>$page_number,
-                'total_number'=>$total_number->num,
+                'page_size' => $page_size,
+                'page_number' => $page_number,
+                'total_number' => $total_number->num,
                 'error_msg' => '',
                 'data' => $result
             );
@@ -284,12 +287,13 @@ class Api extends CI_Controller{
     public function add_user(){
 
         //验证token，防止恶意请求
-        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
             $error_msg = array(
-                'code'=>'10000',
-                'error_msg'=>'token校验失败'
+                'code' => '10000',
+                'error_msg' => 'token校验失败'
             );
-            echo json_encode($error_msg);exit;
+            echo json_encode($error_msg);
+            exit;
         }
 
         //添加的用户相关信息
@@ -302,8 +306,7 @@ class Api extends CI_Controller{
         //验证登录名唯一性
         $check_sql = "SELECT COUNT(*) as num FROM  t_user_info WHERE login_name='" . $login_name . "'";
         $check_result = $this->common_model->getTotalNum($check_sql, 'default');
-//        print($check_result->num);
-        if ($check_result->num>0) {
+        if ($check_result->num > 0) {
             $data = array(
                 'code' => '10006',
                 'error_msg' => '添加失败，登录名重复'
@@ -313,9 +316,10 @@ class Api extends CI_Controller{
         }
 
         //返回结果
-        $result = $this->admin_model->add_user($login_name, md5($login_pwd), $user_name, $user_type,$location_id);
-        log_message('info', '添加用户操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
-        //print_r($result);
+        $result = $this->admin_model->add_user($login_name, md5($login_pwd), $user_name, $user_type, $location_id);
+        log_message('info', '添加用户操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name') . '，操作IP地址为：' . $this->input->cookie('ip') . '，操作归属地为：' . $this->input->cookie('ipName'));
+        log_message('info', '相关参数为：login_name：' . $login_name . '，user_name：' . $user_name . '，user_type：' . $user_type . '，location_id：' . $location_id);
+
         //返回结果数组
         $data = array(
             'code' => '0',
@@ -327,7 +331,7 @@ class Api extends CI_Controller{
                 'error_msg' => $result
             );
         } else {
-            $this->admin_model->add_log($this->input->cookie('ip'), $this->session->userdata('login_name'), '添加用户：'.$login_name,$this->input->cookie('ipName')); //记录日志
+            $this->admin_model->add_log($this->input->cookie('ip'), $this->session->userdata('login_name'), '添加用户：' . $login_name, $this->input->cookie('ipName')); //记录日志
         }
         echo json_encode($data);
     }
@@ -336,12 +340,13 @@ class Api extends CI_Controller{
     public function find_user(){
 
         //验证token，防止恶意请求
-        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
             $error_msg = array(
-                'code'=>'10000',
-                'error_msg'=>'token校验失败'
+                'code' => '10000',
+                'error_msg' => 'token校验失败'
             );
-            echo json_encode($error_msg);exit;
+            echo json_encode($error_msg);
+            exit;
         }
 
         //日志搜索参数
@@ -351,8 +356,7 @@ class Api extends CI_Controller{
         $user_type = $this->input->get('user_type', TRUE);
 
         //返回结果
-        $result = $this->admin_model->find_user($page_size, $page_number,$search_info,$user_type);
-        //print_r($result);
+        $result = $this->admin_model->find_user($page_size, $page_number, $search_info, $user_type);
 
         //数据总条数
         //模糊搜索
@@ -369,7 +373,7 @@ class Api extends CI_Controller{
             $user_type_sql = " AND user_type='" . $user_type . "'";
         }
 
-        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_user_info WHERE 1=1".$search_sql.$user_type_sql;
+        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_user_info WHERE 1=1" . $search_sql . $user_type_sql;
         $total_number = $this->common_model->getTotalNum($get_total_num_sql, 'default');
 
         //返回结果数组
@@ -380,9 +384,9 @@ class Api extends CI_Controller{
         if (!empty($result)) {//非空数组，数据获取成功
             $data = array(
                 'code' => '0',
-                'page_size'=>$page_size,
-                'page_number'=>$page_number,
-                'total_number'=>$total_number->num,
+                'page_size' => $page_size,
+                'page_number' => $page_number,
+                'total_number' => $total_number->num,
                 'error_msg' => '',
                 'data' => $result
             );
@@ -394,12 +398,13 @@ class Api extends CI_Controller{
     public function edit_user_info(){
 
         //验证token，防止恶意请求
-        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
             $error_msg = array(
-                'code'=>'10000',
-                'error_msg'=>'token校验失败'
+                'code' => '10000',
+                'error_msg' => 'token校验失败'
             );
-            echo json_encode($error_msg);exit;
+            echo json_encode($error_msg);
+            exit;
         }
 
         //系统用户信息，ID、用户昵称、用户类型、用户状态及所属区域位置ID
@@ -410,8 +415,10 @@ class Api extends CI_Controller{
         $location_id = $this->input->post('location_id', TRUE);
 
         //返回结果
-        $result = $this->admin_model->edit_user_info($id, $user_name,$user_type,$user_status,$location_id);
-        log_message('info', '修改用户信息操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
+        $result = $this->admin_model->edit_user_info($id, $user_name, $user_type, $user_status, $location_id);
+        log_message('info', '修改用户信息操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name') . '，操作IP地址为：' . $this->input->cookie('ip') . '，操作归属地为：' . $this->input->cookie('ipName'));
+        log_message('info', '相关参数为：id：' . $id . '，user_name：' . $user_name . '，user_type：' . $user_type . '，user_status：' . $user_status . '，location_id：' . $location_id);
+
         //print_r($result);
         //返回结果数组
         $data = array(
@@ -485,7 +492,8 @@ class Api extends CI_Controller{
         //返回结果
         $result = $this->admin_model->subsidy_op($id, $subsidy_name);
         log_message('info', '补贴操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
-        //print_r($result);
+        log_message('info', '相关参数为：id：' . $id . '，subsidy_name：' . $subsidy_name);
+
         //返回结果数组
         $data = array(
             'code' => '0',
@@ -578,11 +586,11 @@ class Api extends CI_Controller{
                         $result = $this->common_model->execQuery($add_sql, 'default');
                         //如果添加成功，则记录log
                         if ($result) {
-                            $this->admin_model->add_log($this->input->cookie('ip'), $_SESSION['login_name'] . '  ' . $_SESSION['user_name'], '添加车辆信息，车主姓名为：' . $item['A'], $this->input->cookie('ipName')); //记录日志
+                            $this->admin_model->add_log($this->input->cookie('ip'), $_SESSION['login_name'] . '  ' . $_SESSION['user_name'], '添加车辆信息，车主姓名为：' . $item['B'], $this->input->cookie('ipName')); //记录日志
                         }
                         $success_num++;
                     } else {
-                        log_message('info', '数据添加失败，失败IdCard为：' . $item['B']);
+                        log_message('info', '数据添加失败，失败IdCard为：' . $item['D']);
                         $fail_num++;
                         array_push($fail_array, $item['B']);//记录失败ID
                     }
@@ -686,7 +694,8 @@ class Api extends CI_Controller{
 
         //返回结果
         $result = $this->admin_model->add_location_info($location_name);
-        log_message('info', '添加区域：'.$location_name.'添加区域操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
+        log_message('info', '添加区域：' . $location_name . '，添加区域操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
+        log_message('info', '相关参数为：location_name：' . $location_name);
 
         //返回结果数组
         $data = array(
@@ -725,6 +734,7 @@ class Api extends CI_Controller{
         //返回结果
         $result = $this->admin_model->edit_location_info($id, $location_name);
         log_message('info', '修改区域范围操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
+        log_message('info', '相关参数为：id：' . $id . '，location_name：' . $location_name);
 
         //返回结果数组
         $data = array(
@@ -784,7 +794,7 @@ class Api extends CI_Controller{
     //已补贴数据导出接口
     public function export_info_list(){
         //验证token，防止恶意请求
-        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+        if(!$this->admin_model->verify_token($this->input->get('token', TRUE),$this->config->config['token_key'])){
             $error_msg = array(
                 'code'=>'10000',
                 'error_msg'=>'token校验失败'
@@ -797,14 +807,16 @@ class Api extends CI_Controller{
         $end_time = $this->input->get('end_time', TRUE);
 
         //根据token获取用户区域码
-        $headers = apache_request_headers();
-        $tokens = explode('.', $headers['authorization']);
+        $tokens = explode('.', $this->input->get('token', TRUE));
+//        var_dump($tokens);
         list($header64, $payload64, $sign) = $tokens;
+//        var_dump($payload64);
         $payload = json_decode(base64_decode($payload64));
+//        var_dump($tokens);
         $location_id = $payload->location_id;
 
         //获取查询数据
-        $result = $this->admin_model->export_info_list($begin_time, $end_time, $location_id);
+        $result = $this->admin_model->export_info_list(date("Y-m-d H:i:s", $begin_time / 1000), date("Y-m-d H:i:s", $end_time / 1000), $location_id);
         if (count($result) == 0) {
             $error_msg = array(
                 'code' => '10017',
@@ -813,11 +825,6 @@ class Api extends CI_Controller{
             echo json_encode($error_msg);
             exit;
         }
-//        echo $result[0]['contact'];
-//        echo $result[0]['idcard'];
-//        var_dump($result);
-//        echo count($result);
-//        exit;
 
         //开始生成Excel数据
         //新建Excel类
@@ -831,7 +838,6 @@ class Api extends CI_Controller{
             ->setLastModifiedBy("ums")
             ->setTitle("Office 2007 XLSX Document")
             ->setSubject("Office 2007 XLSX Document");
-
 
         // 设置标题栏
         $objPHPExcel->setActiveSheetIndex(0)
@@ -888,8 +894,44 @@ class Api extends CI_Controller{
         header('Pragma: public'); // HTTP/1.0
 
         $objWriter->save('php://output');
+    }
 
 
+    //修改车辆信息所属区域接口
+    public function edit_vehicle_location_id(){
+
+        //验证token，防止恶意请求
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
+
+        //ID及所属区域位置ID
+        $id = $this->input->post('id', TRUE);
+        $location_id = $this->input->post('location_id', TRUE);
+
+        //返回结果
+        $result = $this->admin_model->edit_vehicle_location_id($id, $location_id);
+        log_message('info', '修改车辆信息区域码结果：' . $result . '，操作人为：' . $this->session->userdata('login_name'));
+        log_message('info', '相关参数为：id：' . $id . '，location_id：' . $location_id);
+
+        //返回结果数组
+        $data = array(
+            'code' => '0',
+            'error_msg' => ''
+        );
+        if (!$result) {
+            $data = array(
+                'code' => '10018',
+                'error_msg' => $result
+            );
+        } else {
+            $this->admin_model->add_log($this->input->cookie('ip'), $this->session->userdata('login_name'), '车辆信息区域码修改，修改车辆ID为：' . $id . '，修改新区域码为：' . $location_id, $this->input->cookie('ipName')); //记录日志
+        }
+        echo json_encode($data);
     }
 
 
