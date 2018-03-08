@@ -165,14 +165,14 @@ class Admin_Model extends CI_Model {
      * @return mixed
      */
     function find_user($_page_size, $_page_number, $_search_info,$_user_type){
-        $find_sql = "SELECT id, login_name, user_name , user_type ,user_status FROM t_user_info WHERE 1=1";
+        $find_sql = "SELECT * FROM v_user_info_list WHERE 1=1";
 
         //模糊搜索
         $search_sql = "";
         if ($_search_info !== '') {
             //mysql CONCAT(str1,str2,…)
             //返回结果为连接参数产生的字符串。如有任何一个参数为NULL ，则返回值为 NULL。
-            $search_sql = " AND CONCAT( login_name   ,  user_name   ,  user_status  ) LIKE '%" . $_search_info . "%'";
+            $search_sql = " AND CONCAT(login_name,user_name,user_status) LIKE '%" . $_search_info . "%'";
         }
 
         //用户类型筛选

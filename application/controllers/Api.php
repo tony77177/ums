@@ -298,10 +298,18 @@ class Api extends CI_Controller{
 
         //添加的用户相关信息
         $login_name = $this->input->post('login_name', TRUE);
-        $login_pwd = $this->input->post('login_pwd', TRUE);
+//        $login_pwd = $this->input->post('login_pwd', TRUE);密码逻辑更改自动生成随机密码
         $user_name = $this->input->post('user_name', TRUE);
         $user_type = $this->input->post('user_type', TRUE);
         $location_id = $this->input->post('location_id', TRUE);
+
+        //自动生成随机密码，目前默认为8位
+        $length = 8;//密码默认长度为8位
+        $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_ []{}<>~`+=,.;:/?|';// 密码字符集，可任意添加你需要的字符
+        $password = '';//随机生成的密码
+        for ( $i = 0; $i < $length; $i++ ) {
+            $password .= $chars[ mt_rand(0, strlen($chars) - 1) ];
+        }
 
         //验证登录名唯一性
         $check_sql = "SELECT COUNT(*) as num FROM  t_user_info WHERE login_name='" . $login_name . "'";
@@ -316,14 +324,15 @@ class Api extends CI_Controller{
         }
 
         //返回结果
-        $result = $this->admin_model->add_user($login_name, md5($login_pwd), $user_name, $user_type, $location_id);
+        $result = $this->admin_model->add_user($login_name, md5($password), $user_name, $user_type, $location_id);
         log_message('info', '添加用户操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name') . '，操作IP地址为：' . $this->input->cookie('ip') . '，操作归属地为：' . $this->input->cookie('ipName'));
         log_message('info', '相关参数为：login_name：' . $login_name . '，user_name：' . $user_name . '，user_type：' . $user_type . '，location_id：' . $location_id);
 
         //返回结果数组
         $data = array(
             'code' => '0',
-            'error_msg' => ''
+            'error_msg' => '',
+            'password' => $password
         );
         if (!$result) {
             $data = array(
@@ -373,7 +382,7 @@ class Api extends CI_Controller{
             $user_type_sql = " AND user_type='" . $user_type . "'";
         }
 
-        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_user_info WHERE 1=1" . $search_sql . $user_type_sql;
+        $get_total_num_sql = "SELECT COUNT(*) as num FROM v_user_info_list WHERE 1=1" . $search_sql . $user_type_sql;
         $total_number = $this->common_model->getTotalNum($get_total_num_sql, 'default');
 
         //返回结果数组
@@ -793,14 +802,24 @@ class Api extends CI_Controller{
 
     //已补贴数据导出接口
     public function export_info_list(){
+
         //验证token，防止恶意请求
-        if(!$this->admin_model->verify_token($this->input->get('token', TRUE),$this->config->config['token_key'])){
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
             $error_msg = array(
                 'code'=>'10000',
                 'error_msg'=>'token校验失败'
             );
             echo json_encode($error_msg);exit;
         }
+
+//        //验证token，防止恶意请求
+//        if(!$this->admin_model->verify_token($this->input->get('token', TRUE),$this->config->config['token_key'])){
+//            $error_msg = array(
+//                'code'=>'10000',
+//                'error_msg'=>'token校验失败'
+//            );
+//            echo json_encode($error_msg);exit;
+//        }
 
         //获取导出开始时间及结束时间
         $begin_time = $this->input->get('begin_time', TRUE);
@@ -815,16 +834,61 @@ class Api extends CI_Controller{
 //        var_dump($tokens);
         $location_id = $payload->location_id;
 
-        //获取查询数据
-        $result = $this->admin_model->export_info_list(date("Y-m-d H:i:s", $begin_time / 1000), date("Y-m-d H:i:s", $end_time / 1000), $location_id);
-        if (count($result) == 0) {
+        //获取数据条数
+
+//        $get_total_num_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE subsidy_flag='1' AND location_id='".$location_id."' AND subsidy_time BETWEEN '" . date("Y-m-d H:i:s", $begin_time / 1000) . "' AND '" . date("Y-m-d H:i:s", $end_time / 1000) . "'";
+        $get_total_num_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE subsidy_flag='1' AND location_id='0' AND subsidy_time BETWEEN '" . date("Y-m-d H:i:s", $begin_time / 1000) . "' AND '" . date("Y-m-d H:i:s", $end_time / 1000) . "'";
+//        echo $get_total_num_sql;
+        $total_number = $this->common_model->getTotalNum($get_total_num_sql, 'default');
+
+//        echo $total_number->num;exit;
+
+//        $result = $this->admin_model->export_info_list(, , $location_id);
+        if ($total_number->num == 0) {
             $error_msg = array(
                 'code' => '10017',
                 'error_msg' => '没有查询到数据'
             );
             echo json_encode($error_msg);
-            exit;
+        }else{
+            $data = array(
+                'code' => '0',
+                'error_msg' => '',
+                'download_link' => site_url() . '/api/download_info?begin_time=' . $begin_time . '&end_time=' . $end_time . '&token=' . $this->input->get('token', TRUE)
+            );
+            echo json_encode($data);
         }
+    }
+
+    //生成Excel流
+    public function download_info(){
+
+        //验证token，防止恶意请求
+        if(!$this->admin_model->verify_token($this->input->get('token', TRUE),$this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
+
+
+
+        //获取导出开始时间及结束时间
+        $begin_time = $this->input->get('begin_time', TRUE);
+        $end_time = $this->input->get('end_time', TRUE);
+
+        //根据token获取用户区域码
+        $tokens = explode('.', $this->input->get('token', TRUE));
+//        var_dump($tokens);
+        list($header64, $payload64, $sign) = $tokens;
+//        var_dump($payload64);
+        $payload = json_decode(base64_decode($payload64));
+//        var_dump($tokens);
+        $location_id = $payload->location_id;
+
+        //获取数据
+        $result = $this->admin_model->export_info_list(date("Y-m-d H:i:s", $begin_time / 1000), date("Y-m-d H:i:s", $end_time / 1000), $location_id);
 
         //开始生成Excel数据
         //新建Excel类
@@ -896,7 +960,6 @@ class Api extends CI_Controller{
         $objWriter->save('php://output');
     }
 
-
     //修改车辆信息所属区域接口
     public function edit_vehicle_location_id(){
 
@@ -933,7 +996,6 @@ class Api extends CI_Controller{
         }
         echo json_encode($data);
     }
-
 
     //退出系统接口
     public function logout(){
