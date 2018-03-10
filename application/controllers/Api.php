@@ -826,7 +826,8 @@ class Api extends CI_Controller{
         $end_time = $this->input->get('end_time', TRUE);
 
         //根据token获取用户区域码
-        $tokens = explode('.', $this->input->get('token', TRUE));
+        $headers = apache_request_headers();
+        $tokens = explode('.', $headers['authorization']);
 //        var_dump($tokens);
         list($header64, $payload64, $sign) = $tokens;
 //        var_dump($payload64);
