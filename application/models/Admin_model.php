@@ -411,7 +411,12 @@ class Admin_Model extends CI_Model {
      * @return mixed
      */
     function export_info_list($_begin_time,$_end_time,$_location_id){
-        $get_info_sql = "SELECT * FROM t_vehicle_info WHERE subsidy_flag='1' AND location_id='".$_location_id."' AND subsidy_time BETWEEN '" . $_begin_time . "' AND '" . $_end_time . "'";
+        //此处需要判断是否为超管，当$_location_id==0时为超管，导出已补贴数据；否则，根据所属区域范围导出
+        if ($_location_id == 0) {
+            $get_info_sql = "SELECT * FROM t_vehicle_info WHERE subsidy_flag='1' AND subsidy_time BETWEEN '" . $_begin_time . "' AND '" . $_end_time . "'";
+        } else {
+            $get_info_sql = "SELECT * FROM t_vehicle_info WHERE subsidy_flag='1' AND location_id='" . $_location_id . "' AND subsidy_time BETWEEN '" . $_begin_time . "' AND '" . $_end_time . "'";
+        }
         $result = $this->common_model->getDataList($get_info_sql, 'default');
         return $result;
     }

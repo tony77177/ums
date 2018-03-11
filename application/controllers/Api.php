@@ -323,8 +323,11 @@ class Api extends CI_Controller{
             exit;
         }
 
-        //返回结果
-        $result = $this->admin_model->add_user($login_name, md5($password), $user_name, $user_type, $location_id);
+        /*
+         * 返回添加用户操作结果
+         * 注：此处改为后台自动生成密码，因前端登录时需要进行一次MD5加密、后台进行一次MD5，故在添加数据库时，需要进行两次MD5加密
+         */
+        $result = $this->admin_model->add_user($login_name, md5(md5($password)), $user_name, $user_type, $location_id);
         log_message('info', '添加用户操作结果：' . $result . '，操作人为：' . $this->session->userdata('login_name') . '，操作IP地址为：' . $this->input->cookie('ip') . '，操作归属地为：' . $this->input->cookie('ipName'));
         log_message('info', '相关参数为：login_name：' . $login_name . '，user_name：' . $user_name . '，user_type：' . $user_type . '，location_id：' . $location_id);
 
@@ -827,7 +830,9 @@ class Api extends CI_Controller{
 
         //根据token获取用户区域码
         $headers = apache_request_headers();
-        $tokens = explode('.', $headers['authorization']);
+        $token = $headers['authorization'];
+        $tokens = explode('.', $token);
+//        var_dump($headers['authorization']);exit;
 //        var_dump($tokens);
         list($header64, $payload64, $sign) = $tokens;
 //        var_dump($payload64);
@@ -835,10 +840,15 @@ class Api extends CI_Controller{
 //        var_dump($tokens);
         $location_id = $payload->location_id;
 
-        //获取数据条数
-
-//        $get_total_num_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE subsidy_flag='1' AND location_id='".$location_id."' AND subsidy_time BETWEEN '" . date("Y-m-d H:i:s", $begin_time / 1000) . "' AND '" . date("Y-m-d H:i:s", $end_time / 1000) . "'";
-        $get_total_num_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE subsidy_flag='1' AND location_id='0' AND subsidy_time BETWEEN '" . date("Y-m-d H:i:s", $begin_time / 1000) . "' AND '" . date("Y-m-d H:i:s", $end_time / 1000) . "'";
+        /*
+         * 获取条数数据，此处需要判断是否为超管
+         */
+        if($location_id==0){
+            $get_total_num_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE subsidy_flag='1' AND subsidy_time BETWEEN '" . date("Y-m-d H:i:s", $begin_time / 1000) . "' AND '" . date("Y-m-d H:i:s", $end_time / 1000) . "'";
+        }else{
+            $get_total_num_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE subsidy_flag='1' AND location_id='".$location_id."' AND subsidy_time BETWEEN '" . date("Y-m-d H:i:s", $begin_time / 1000) . "' AND '" . date("Y-m-d H:i:s", $end_time / 1000) . "'";
+        }
+//        $get_total_num_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE subsidy_flag='1' AND location_id='0' AND subsidy_time BETWEEN '" . date("Y-m-d H:i:s", $begin_time / 1000) . "' AND '" . date("Y-m-d H:i:s", $end_time / 1000) . "'";
 //        echo $get_total_num_sql;
         $total_number = $this->common_model->getTotalNum($get_total_num_sql, 'default');
 
@@ -855,8 +865,10 @@ class Api extends CI_Controller{
             $data = array(
                 'code' => '0',
                 'error_msg' => '',
-                'download_link' => site_url() . '/api/download_info?begin_time=' . $begin_time . '&end_time=' . $end_time . '&token=' . $this->input->get('token', TRUE)
+                'download_link' => site_url() . '/api/download_info?begin_time=' . $begin_time . '&end_time=' . $end_time . '&token=' . $token
             );
+            log_message('info', '查询到数据，返回download_Info接口相应地址：');
+            log_message('info', '相关参数为：download_link：' . $data['download_link']);
             echo json_encode($data);
         }
     }
@@ -865,6 +877,8 @@ class Api extends CI_Controller{
     public function download_info(){
 
         //验证token，防止恶意请求
+//        var_dump($this->input->get());exit;
+//        echo $this->input->get('token', TRUE);exit;
         if(!$this->admin_model->verify_token($this->input->get('token', TRUE),$this->config->config['token_key'])){
             $error_msg = array(
                 'code'=>'10000',
@@ -872,8 +886,6 @@ class Api extends CI_Controller{
             );
             echo json_encode($error_msg);exit;
         }
-
-
 
         //获取导出开始时间及结束时间
         $begin_time = $this->input->get('begin_time', TRUE);
@@ -887,6 +899,9 @@ class Api extends CI_Controller{
         $payload = json_decode(base64_decode($payload64));
 //        var_dump($tokens);
         $location_id = $payload->location_id;
+
+        log_message('info', '进入download_Info接口：');
+        log_message('info', '相关参数为：begin_time：' . $begin_time . '，end_time：' . $end_time . '，location_id：' . $location_id);
 
         //获取数据
         $result = $this->admin_model->export_info_list(date("Y-m-d H:i:s", $begin_time / 1000), date("Y-m-d H:i:s", $end_time / 1000), $location_id);
