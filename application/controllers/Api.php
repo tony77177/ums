@@ -87,9 +87,28 @@ class Api extends CI_Controller{
 //                'location_id' => $result[0]['location_id'],
                 'token' => $token
             );
+            //获取用户登录相关session
             $this->session->set_userdata('user_name', $result[0]['user_name']); //记录用户名，用于判断是否登录
             $this->session->set_userdata('user_type', $result[0]['user_type']);
             $this->session->set_userdata('login_name', $login_name);
+
+            //获取用户列表session，用于车辆信息处判断login_name对应的user_name
+            $user_info_arr = $this->admin_model->get_all_user_info();
+            $this->session->set_userdata('user_info_arr',$user_info_arr);
+//            var_dump($this->session->userdata('user_info_arr'));exit;
+
+            //获取区域列表session，用于用户列表所属区域判断
+            $location_info_res = $this->admin_model->get_all_location_info();
+            //进行格式整改，更改为：10000 => string '朱昌镇' (length=9)类型，方便后期直接读取
+            $location_info_arr = '';
+            if (is_array($location_info_res)) {
+                foreach ($location_info_res as $key => $val) {
+                    $location_info_arr[$val['id']] = $val['location_name'];
+                }
+            }
+            $this->session->set_userdata('location_info_arr',$location_info_arr);
+
+            //存日志
             log_message('info', '登录成功，用户名：' . $login_name);
             $this->admin_model->add_log($ip_address, $login_name, '用户登录', $ip_location); //记录登录日志
         }
@@ -208,7 +227,7 @@ class Api extends CI_Controller{
             $search_sql = " AND CONCAT(contact ,idcard ,address,contacttel) LIKE '%" . $search_info . "%'";
         }
         if ($location_id != 0) {
-            $search_sql .= ' AND location_id=' . $location_id;
+            $search_sql .= ' AND location_id IN(' . $location_id . ')';
         }
 
         $get_total_num_sql = "SELECT COUNT(*) as num FROM t_vehicle_info WHERE 1=1" . $search_sql;
@@ -305,7 +324,7 @@ class Api extends CI_Controller{
 
         //自动生成随机密码，目前默认为8位
         $length = 8;//密码默认长度为8位
-        $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_ []{}<>~`+=,.;:/?|';// 密码字符集，可任意添加你需要的字符
+        $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_[]{}<>~`+=,.;:/?|';// 密码字符集，可任意添加你需要的字符
         $password = '';//随机生成的密码
         for ( $i = 0; $i < $length; $i++ ) {
             $password .= $chars[ mt_rand(0, strlen($chars) - 1) ];
@@ -394,6 +413,25 @@ class Api extends CI_Controller{
             'error_msg' => '数据读取失败，请稍后再试'
         );
         if (!empty($result)) {//非空数组，数据获取成功
+
+            //此处利用session数组，新增结果集对应的location_name
+            for ($i = 0; $i < count($result); $i++) {
+                $result[$i]['location_name'] = '';
+                //判断是否属于过个区域，如果是，进行location_name的组装
+                if (strstr($result[$i]['location_id'], ',')) {
+                    $location_id_arr = explode(",", $result[$i]['location_id']);
+                    for ($j = 0; $j < count($location_id_arr); $j++) {
+                        if ($j + 1 == count($location_id_arr)) {
+                            $result[$i]['location_name'] .= $this->session->userdata('location_info_arr')[$location_id_arr[$j]];
+                        } else {
+                            $result[$i]['location_name'] .= $this->session->userdata('location_info_arr')[$location_id_arr[$j]] . ',';
+                        }
+                    }
+                } else {
+                    $result[$i]['location_name'] = $this->session->userdata('location_info_arr')[$result[$i]['location_id']];
+                }
+            }
+
             $data = array(
                 'code' => '0',
                 'page_size' => $page_size,
@@ -452,13 +490,13 @@ class Api extends CI_Controller{
     public function get_user_info_by_id(){
 
         //验证token，防止恶意请求
-        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
-            $error_msg = array(
-                'code'=>'10000',
-                'error_msg'=>'token校验失败'
-            );
-            echo json_encode($error_msg);exit;
-        }
+//        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+//            $error_msg = array(
+//                'code'=>'10000',
+//                'error_msg'=>'token校验失败'
+//            );
+//            echo json_encode($error_msg);exit;
+//        }
 
         //用户ID
         $id = $this->input->get('id', TRUE);

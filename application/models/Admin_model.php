@@ -92,7 +92,7 @@ class Admin_Model extends CI_Model {
         $find_sql = "SELECT * FROM t_vehicle_info WHERE 1=1";
 
         if ($_location_id != 0) {
-            $find_sql .= ' AND location_id=' . $_location_id;
+            $find_sql .= ' AND location_id IN(' . $_location_id . ')';
         }
 
         //模糊搜索
@@ -165,7 +165,7 @@ class Admin_Model extends CI_Model {
      * @return mixed
      */
     function find_user($_page_size, $_page_number, $_search_info,$_user_type){
-        $find_sql = "SELECT * FROM v_user_info_list WHERE 1=1";
+        $find_sql = "SELECT id,login_name,user_name,create_time,user_type,user_status,location_id FROM t_user_info WHERE 1=1";
 
         //模糊搜索
         $search_sql = "";
@@ -431,6 +431,26 @@ class Admin_Model extends CI_Model {
     function edit_vehicle_location_id($_id,$_location_id){
         $update_sql = "UPDATE t_vehicle_info SET  location_id='" . $_location_id . "' WHERE  id='" . $_id . "'";
         $result = $this->common_model->execQuery($update_sql, 'default');
+        return $result;
+    }
+
+    /**
+     * 获取所有用户登录名及用户名，用于车辆信息处进行展示
+     * @return mixed
+     */
+    function get_all_user_info(){
+        $get_info_sql = "SELECT login_name,user_name FROM t_user_info";
+        $result = $this->common_model->getDataList($get_info_sql, 'default');
+        return $result;
+    }
+
+    /**
+     * 获取所有区域ID及名称，用于用户属性列表展示用户所属区域
+     * @return mixed
+     */
+    function get_all_location_info(){
+        $get_info_sql = "SELECT id,location_name FROM t_location_info";
+        $result = $this->common_model->getDataList($get_info_sql, 'default');
         return $result;
     }
 
