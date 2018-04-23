@@ -194,22 +194,35 @@ class Api extends CI_Controller{
     public function find_data(){
 
         //验证token，防止恶意请求
-        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
-            $error_msg = array(
-                'code' => '10000',
-                'error_msg' => 'token校验失败'
-            );
-            echo json_encode($error_msg);
-            exit;
-        }
+//        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
+//            $error_msg = array(
+//                'code' => '10000',
+//                'error_msg' => 'token校验失败'
+//            );
+//            echo json_encode($error_msg);
+//            exit;
+//        }
 
         //用户信息搜索参数
         $page_size = $this->input->get('page_size', TRUE);
         $page_number = $this->input->get('page_number', TRUE);
         $search_info = trim($this->input->get('search_info', TRUE));
 
+        $headers = '';
         //根据token获取用户区域码
-        $headers = apache_request_headers();
+        if(!function_exists(apache_request_headers())){
+            foreach ($_SERVER as $name => $value)
+            {
+                if (substr($name, 0, 5) == 'HTTP_')
+                {
+                    $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+                }
+            }
+            //return $headers;
+        }else{
+            $headers = apache_request_headers();
+        }
+
         $tokens = explode('.', $headers['authorization']);
         list($header64, $payload64, $sign) = $tokens;
         $payload = json_decode(base64_decode($payload64));
@@ -388,7 +401,7 @@ class Api extends CI_Controller{
 
         //返回结果
         $result = $this->admin_model->find_user($page_size, $page_number, $search_info, $user_type);
-
+//        var_dump($result);exit;
         //数据总条数
         //模糊搜索
         $search_sql = "";
@@ -428,7 +441,11 @@ class Api extends CI_Controller{
                         }
                     }
                 } else {
+//                    var_dump($this->session->userdata('location_info_arr'));
+//                    var_dump($result[$i]['location_id']);
+//                    var_dump();exit;
                     $result[$i]['location_name'] = $this->session->userdata('location_info_arr')[$result[$i]['location_id']];
+//                    var_dump($result[$i]['location_name']);
                 }
             }
 
