@@ -194,14 +194,14 @@ class Api extends CI_Controller{
     public function find_data(){
 
         //验证token，防止恶意请求
-//        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
-//            $error_msg = array(
-//                'code' => '10000',
-//                'error_msg' => 'token校验失败'
-//            );
-//            echo json_encode($error_msg);
-//            exit;
-//        }
+        if (!$this->admin_model->auth_check($this->config->config['token_key'])) {
+            $error_msg = array(
+                'code' => '10000',
+                'error_msg' => 'token校验失败'
+            );
+            echo json_encode($error_msg);
+            exit;
+        }
 
         //用户信息搜索参数
         $page_size = $this->input->get('page_size', TRUE);
