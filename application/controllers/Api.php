@@ -404,7 +404,7 @@ class Api extends CI_Controller{
             $user_type_sql = " AND user_type='" . $user_type . "'";
         }
 
-        $get_total_num_sql = "SELECT COUNT(*) as num FROM v_user_info_list WHERE 1=1" . $search_sql . $user_type_sql;
+        $get_total_num_sql = "SELECT COUNT(*) as num FROM t_user_info WHERE 1=1" . $search_sql . $user_type_sql;
         $total_number = $this->common_model->getTotalNum($get_total_num_sql, 'default');
 
         //返回结果数组
