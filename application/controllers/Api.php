@@ -224,6 +224,8 @@ class Api extends CI_Controller{
             $headers = apache_request_headers();
         }
 
+        print_r($headers);exit;
+
         $tokens = explode('.', $headers['authorization']);
         list($header64, $payload64, $sign) = $tokens;
         $payload = json_decode(base64_decode($payload64));
