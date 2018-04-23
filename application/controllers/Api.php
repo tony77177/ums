@@ -210,7 +210,7 @@ class Api extends CI_Controller{
 
         $headers = '';
         //根据token获取用户区域码
-        if(!function_exists(apache_request_headers())){
+        if(!function_exists('apache_request_headers')){
             echo '111';exit;
             foreach ($_SERVER as $name => $value)
             {
