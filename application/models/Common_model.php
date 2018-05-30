@@ -30,6 +30,38 @@ class Common_Model extends CI_Model {
         return $query;
     }
 
+    /*
+     *提供上传用户信息接口使用，主要负责用户上传数据过滤等操作
+     */
+    function insertQuery($db_name, $table_name, $item)
+    {
+        $this->$db_name = $this->load->database($db_name, TRUE);
+        $data = array(
+            'location_id' => $this->$db_name->escape($item['A']),
+            'contact' => $this->$db_name->escape($item['B']),
+            'contacttel' => $this->$db_name->escape($item['C']),
+            'idcard' => $this->$db_name->escape($item['D']),
+            'licenseplate' => $this->$db_name->escape($item['E']),
+            'frid' => $this->$db_name->escape($item['F']),
+            'maincard' => $this->$db_name->escape($item['G']),
+            'brand' => $this->$db_name->escape($item['H']),
+            'color' => $this->$db_name->escape($item['I']),
+            'cartype' => $this->$db_name->escape($item['J']),
+            'address' => $this->$db_name->escape($item['K'])
+        );
+        print_r($data);exit;
+        return $this->$db_name->insert($table_name, $data);
+
+//        if ($is_simple == TRUE) {
+//            $query = $this->$db_name->simple_query($sql);
+//        } else {
+//            $query = $this->$db_name->query($sql);
+//        }
+//        return $query;
+    }
+
+
+
     /**
      * 更新操作
      * @param string $db_name       数据库名

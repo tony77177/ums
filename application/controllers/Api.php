@@ -494,13 +494,13 @@ class Api extends CI_Controller{
     public function get_user_info_by_id(){
 
         //验证token，防止恶意请求
-//        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
-//            $error_msg = array(
-//                'code'=>'10000',
-//                'error_msg'=>'token校验失败'
-//            );
-//            echo json_encode($error_msg);exit;
-//        }
+        if(!$this->admin_model->auth_check($this->config->config['token_key'])){
+            $error_msg = array(
+                'code'=>'10000',
+                'error_msg'=>'token校验失败'
+            );
+            echo json_encode($error_msg);exit;
+        }
 
         //用户ID
         $id = $this->input->get('id', TRUE);
@@ -635,9 +635,10 @@ class Api extends CI_Controller{
                     //如果不重复，则执行数据新增操作
                     if ($check_result->num == 0) {
                         //新增数据SQL
-                        $add_sql = "INSERT INTO t_vehicle_info(location_id,contact,contacttel,idcard,licenseplate,frid,maincard,brand,color,cartype,address) VALUES ";
-                        $add_sql .= "('" . $item['A'] . "','" . $item['B'] . "','" . $item['C'] . "','" . $item['D'] . "','" . $item['E'] . "','" . $item['F'] . "','" . $item['G'] . "','" . $item['H'] . "','" . $item['I'] . "','" . $item['J'] . "','" . $item['K'] . "')";
-                        $result = $this->common_model->execQuery($add_sql, 'default');
+//                        $add_sql = "INSERT INTO t_vehicle_info(location_id,contact,contacttel,idcard,licenseplate,frid,maincard,brand,color,cartype,address) VALUES ";
+//                        $add_sql .= "('" . $item['A'] . "','" . $item['B'] . "','" . $item['C'] . "','" . $item['D'] . "','" . $item['E'] . "','" . $item['F'] . "','" . $item['G'] . "','" . $item['H'] . "','" . $item['I'] . "','" . $item['J'] . "','" . $item['K'] . "')";
+//                        $result = $this->common_model->execQuery($add_sql, 'default');
+                        $result = $this->common_model->insertQuery('default','t_vehicle_info',$item);
                         //如果添加成功，则记录log
                         if ($result) {
                             $this->admin_model->add_log($this->input->cookie('ip'), $_SESSION['login_name'] . '  ' . $_SESSION['user_name'], '添加车辆信息，车主姓名为：' . $item['B'], $this->input->cookie('ipName')); //记录日志
