@@ -109,7 +109,7 @@ class Api extends CI_Controller{
             $this->session->set_userdata('location_info_arr',$location_info_arr);
 
             //存日志
-            log_message('info', '登录成功，用户名：' . $login_name);
+            log_message('info', '登录成功，用户名：' . $login_name . '，登录IP：' . $ip_location);
             $this->admin_model->add_log($ip_address, $login_name, '用户登录', $ip_location); //记录登录日志
         }
         echo json_encode($data);
