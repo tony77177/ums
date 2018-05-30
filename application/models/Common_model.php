@@ -38,7 +38,7 @@ class Common_Model extends CI_Model {
         $this->$db_name = $this->load->database($db_name, TRUE);
         $data = array(
             'location_id' => $this->$db_name->escape($item['A']),
-            'contact' => $this->$db_name->escape($item['B']),
+            'contact' => mysql_real_escape_string($item['B']),
             'contacttel' => $this->$db_name->escape($item['C']),
             'idcard' => $this->$db_name->escape($item['D']),
             'licenseplate' => $this->$db_name->escape($item['E']),
