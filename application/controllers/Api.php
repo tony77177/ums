@@ -608,7 +608,7 @@ class Api extends CI_Controller{
                     $column = $objPHPExcel->getActiveSheet()->getCell($cell)->getColumn();
                     $row = $objPHPExcel->getActiveSheet()->getCell($cell)->getRow();
                     //获取具体值此处使用：getFormattedValue，因为部分excel中包含格式，所以包含格式一起读取
-                    $data_value = trim($objPHPExcel->getActiveSheet()->getCell($cell)->getFormattedValue());
+                    $data_value = $this->common_class->strFilter($objPHPExcel->getActiveSheet()->getCell($cell)->getFormattedValue());
                     //header will/should be in row 1 only. of course this can be modified to suit your need.
                     if ($row == 1) {
                         $header[$row][$column] = $data_value;
@@ -636,10 +636,10 @@ class Api extends CI_Controller{
                     //如果不重复，则执行数据新增操作
                     if ($check_result->num == 0) {
                         //新增数据SQL
-//                        $add_sql = "INSERT INTO t_vehicle_info(location_id,contact,contacttel,idcard,licenseplate,frid,maincard,brand,color,cartype,address) VALUES ";
-//                        $add_sql .= "('" . $item['A'] . "','" . $item['B'] . "','" . $item['C'] . "','" . $item['D'] . "','" . $item['E'] . "','" . $item['F'] . "','" . $item['G'] . "','" . $item['H'] . "','" . $item['I'] . "','" . $item['J'] . "','" . $item['K'] . "')";
-//                        $result = $this->common_model->execQuery($add_sql, 'default');
-                        $result = $this->common_model->insertQuery('default','t_vehicle_info',$item);
+                        $add_sql = "INSERT INTO t_vehicle_info(location_id,contact,contacttel,idcard,licenseplate,frid,maincard,brand,color,cartype,address) VALUES ";
+                        $add_sql .= "('" . $item['A'] . "','" . $item['B'] . "','" . $item['C'] . "','" . $item['D'] . "','" . $item['E'] . "','" . $item['F'] . "','" . $item['G'] . "','" . $item['H'] . "','" . $item['I'] . "','" . $item['J'] . "','" . $item['K'] . "')";
+                        $result = $this->common_model->execQuery($add_sql, 'default');
+//                        $result = $this->common_model->insertQuery('default','t_vehicle_info',$item);
                         //如果添加成功，则记录log
                         if ($result) {
                             $this->admin_model->add_log($this->input->cookie('ip'), $_SESSION['login_name'] . '  ' . $_SESSION['user_name'], '添加车辆信息，车主姓名为：' . $item['B'], $this->input->cookie('ipName')); //记录日志

@@ -200,6 +200,68 @@ class Common_class {
 
         return $config;
     }
+
+
+    /**
+     * PHP特殊字符过滤
+     * @param $str
+     * @return string
+     */
+    public function strFilter($str){
+        $str = str_replace('`', '', $str);
+        $str = str_replace('·', '', $str);
+        $str = str_replace('~', '', $str);
+        $str = str_replace('!', '', $str);
+        $str = str_replace('！', '', $str);
+        $str = str_replace('@', '', $str);
+        $str = str_replace('#', '', $str);
+        $str = str_replace('$', '', $str);
+        $str = str_replace('￥', '', $str);
+        $str = str_replace('%', '', $str);
+        $str = str_replace('^', '', $str);
+        $str = str_replace('……', '', $str);
+        $str = str_replace('&', '', $str);
+        $str = str_replace('*', '', $str);
+        $str = str_replace('(', '', $str);
+        $str = str_replace(')', '', $str);
+        $str = str_replace('（', '', $str);
+        $str = str_replace('）', '', $str);
+        $str = str_replace('-', '', $str);
+        $str = str_replace('_', '', $str);
+        $str = str_replace('——', '', $str);
+        $str = str_replace('+', '', $str);
+        $str = str_replace('=', '', $str);
+        $str = str_replace('|', '', $str);
+        $str = str_replace('\\', '', $str);
+        $str = str_replace('[', '', $str);
+        $str = str_replace(']', '', $str);
+        $str = str_replace('【', '', $str);
+        $str = str_replace('】', '', $str);
+        $str = str_replace('{', '', $str);
+        $str = str_replace('}', '', $str);
+        $str = str_replace(';', '', $str);
+        $str = str_replace('；', '', $str);
+        $str = str_replace(':', '', $str);
+        $str = str_replace('：', '', $str);
+        $str = str_replace('\'', '', $str);
+        $str = str_replace('"', '', $str);
+        $str = str_replace('“', '', $str);
+        $str = str_replace('”', '', $str);
+        $str = str_replace(',', '', $str);
+        $str = str_replace('，', '', $str);
+        $str = str_replace('<', '', $str);
+        $str = str_replace('>', '', $str);
+        $str = str_replace('《', '', $str);
+        $str = str_replace('》', '', $str);
+        $str = str_replace('.', '', $str);
+        $str = str_replace('。', '', $str);
+        $str = str_replace('/', '', $str);
+        $str = str_replace('、', '', $str);
+        $str = str_replace('?', '', $str);
+        $str = str_replace('？', '', $str);
+        return trim($str);
+    }
+
 }
 
 /* End of file common_class.php */
