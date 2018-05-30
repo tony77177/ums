@@ -49,7 +49,7 @@ class Common_Model extends CI_Model {
             'cartype' => $this->$db_name->escape($item['J']),
             'address' => $this->$db_name->escape($item['K'])
         );
-        print_r($data);exit;
+//        print_r($data);exit;
         return $this->$db_name->insert($table_name, $data);
 
 //        if ($is_simple == TRUE) {
