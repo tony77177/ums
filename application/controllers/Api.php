@@ -626,8 +626,8 @@ class Api extends CI_Controller{
                 $fail_num = 0;//数据添加失败数量
                 $fail_array = array();//添加失败内容
                 foreach ($arr_data as $item) {
-                    //检测数据是否存在
-                    $check_info_is_exist_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE idcard='" . $item['B'] . "'";
+                    //检测数据是否存在，此处通过人卡和车卡一一对应的关系
+                    $check_info_is_exist_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE frid='" . $item['F'] . "' AND maincard='".$item['G']."'";
                     $check_result = $this->common_model->getTotalNum($check_info_is_exist_sql, 'default');
 //                    print_r($check_result);exit;
                     log_message('info', '检测数据是否存在返回结果：：' . $check_result->num);
