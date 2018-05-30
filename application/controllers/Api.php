@@ -630,6 +630,7 @@ class Api extends CI_Controller{
                     $check_info_is_exist_sql = "SELECT COUNT(*) AS num FROM t_vehicle_info WHERE frid='" . $item['F'] . "' AND maincard='".$item['G']."'";
                     $check_result = $this->common_model->getTotalNum($check_info_is_exist_sql, 'default');
 //                    print_r($check_result);exit;
+                    log_message('info', '检测数据是否存在SQL：：' . $check_info_is_exist_sql);
                     log_message('info', '检测数据是否存在返回结果：：' . $check_result->num);
 
                     //如果不重复，则执行数据新增操作
